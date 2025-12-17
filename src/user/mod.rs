@@ -4,5 +4,6 @@ pub mod auth;
 pub mod validation;
 pub mod session;
 pub mod session_repository;
+pub mod error;
 
 

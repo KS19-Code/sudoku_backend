@@ -20,5 +20,10 @@ impl UserRepository {
     self.users.iter().find(|u| u.email == email)
     }
 
+    pub fn find_by_id(&self, id: &Uuid) -> Option<&User> {
+    self.users.iter().find(|u| &u.id == id)
+    }
+
+
  }
 

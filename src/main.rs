@@ -4,6 +4,7 @@ use user::repository::UserRepository;
 use user::auth::{hash_password, verify_password};
 use user::model::User;
 use user::validation::{validate_username, validate_email, validate_password};
+use user::error::{AuthError, AuthResult};
 
 use uuid::Uuid;
 use crate::user::session::Session;
@@ -37,6 +38,14 @@ fn main() {
             } else {
                 println!("User is not logged in.");
             }
+
+            // === User holenn==)
+            println!("=== testing user from session ===");
+            if let Some(user) = get_user_from_session(&session_repo, &repo, &session_id) {
+                println!("User from session: {:?}", user.username);
+            } else {
+                println!("No valid user found for session.");
+            }
             
             //LOGOUT TEST 
             println! ("=== Logging out user ===");
@@ -54,22 +63,22 @@ fn main() {
 
 } 
 
-fn register_user(repo: &mut UserRepository, username: &str, email: &str, password: &str) -> Result<(), String> {
+fn register_user(repo: &mut UserRepository, username: &str, email: &str, password: &str) -> AuthResult<()> {
     
     validate_username(username).map_err(|e| e.to_string())?;
     validate_email(email).map_err(|e| e.to_string())?;
     validate_password(password).map_err(|e| e.to_string())?;
 
     if repo.find_by_username(username).is_some() {
-        return Err("Username already exists".to_string());
+        return Err(AuthError::UsernameExists);
     }
 
     if repo.find_by_email(email).is_some() {
-        return Err("Email already registered".to_string());
+        return Err(AuthError::EmailExists);
     }
 
     let password_hash = hash_password(password)
-        .map_err(|_|"Password hashing failed".to_string())?;
+        .map_err(|_|AuthError::PasswordHashingFailed)?;
 
     let user = User {
         id: Uuid::new_v4(),
@@ -84,16 +93,16 @@ fn register_user(repo: &mut UserRepository, username: &str, email: &str, passwor
     Ok(())
 }
 
-fn login_user(repo: &UserRepository, session_repo: &mut SessionRepository, username: &str, password: &str) -> Result<Uuid, String> {
+fn login_user(repo: &UserRepository, session_repo: &mut SessionRepository, username: &str, password: &str) -> AuthResult<Uuid> {
     let user = repo 
         .find_by_username(username)
-        .ok_or("User not found")?;
+        .ok_or(AuthError::UserNotFound)?;
 
     let ok = verify_password(password, &user.password_hash)
-        .map_err(|_| "Password verification failed")?;
+        .map_err(|_| AuthError::InvalidPassword)?;
 
     if !ok {
-        return Err("Invalid password".to_string());
+        return Err(AuthError::InvalidPassword);
     }
 
     let session = Session {
@@ -117,3 +126,19 @@ fn logout_user(session_repo: &mut SessionRepository, session_id: &Uuid) {
     session_repo.remove_session(session_id);
 }
 
+fn get_user_from_session<'a>(
+    session_repo: &'a SessionRepository,
+    user_repo: &'a UserRepository,
+    session_id: &Uuid,
+) -> Option<&'a User> {
+    // 1. session finden 
+    let session = session_repo.find_by_session_id(session_id)?;
+
+    //2.  checken ob session gültig ist 
+    if !session.is_valid() {
+        return None;
+    }
+
+    //3. user anhand der user_id aus session holen 
+    user_repo.find_by_id(&session.user_id)
+}
