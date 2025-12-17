@@ -12,7 +12,7 @@ pub enum AuthError {
     InvalidPasswordLogin,
     SessionExpired,
 
-    //Existence fehler
+    //Duplikat fehler
     UsernameExists,
     EmailExists,
 

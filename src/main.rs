@@ -127,6 +127,7 @@ fn logout_user(session_repo: &mut SessionRepository, session_id: &Uuid) {
 }
 
 fn get_user_from_session<'a>(
+    
     session_repo: &'a SessionRepository,
     user_repo: &'a UserRepository,
     session_id: &Uuid,
