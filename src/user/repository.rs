@@ -1,4 +1,5 @@
 use crate::user::model::User;
+use uuid::Uuid;
 
 pub struct UserRepository {
     users: Vec<User>,

@@ -65,9 +65,9 @@ fn main() {
 
 fn register_user(repo: &mut UserRepository, username: &str, email: &str, password: &str) -> AuthResult<()> {
     
-    validate_username(username).map_err(|e| e.to_string())?;
-    validate_email(email).map_err(|e| e.to_string())?;
-    validate_password(password).map_err(|e| e.to_string())?;
+    validate_username(username).map_err(|_| AuthError::InvalidUsername)?;
+    validate_email(email).map_err(|_| AuthError::InvalidEmail)?;
+    validate_password(password).map_err(|_| AuthError::InvalidPassword)?;
 
     if repo.find_by_username(username).is_some() {
         return Err(AuthError::UsernameExists);
@@ -99,10 +99,10 @@ fn login_user(repo: &UserRepository, session_repo: &mut SessionRepository, usern
         .ok_or(AuthError::UserNotFound)?;
 
     let ok = verify_password(password, &user.password_hash)
-        .map_err(|_| AuthError::InvalidPassword)?;
+        .map_err(|_| AuthError::InvalidPasswordLogin)?;
 
     if !ok {
-        return Err(AuthError::InvalidPassword);
+        return Err(AuthError::InvalidPasswordLogin);
     }
 
     let session = Session {

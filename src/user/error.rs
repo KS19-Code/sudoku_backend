@@ -2,12 +2,23 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum AuthError {
-    UserNotFound,
+    //Validation fehler
     InvalidPassword,
+    InvalidUsername,
+    InvalidEmail,
+
+    //Login/Sec Fehler
+    UserNotFound,
+    InvalidPasswordLogin,
+    SessionExpired,
+
+    //Existence fehler
     UsernameExists,
     EmailExists,
+
+    //Technische fehler
     PasswordHashingFailed,
-    SessionExpired,
+    
 }
 
 impl fmt::Display for AuthError {
@@ -15,10 +26,14 @@ impl fmt::Display for AuthError {
         match self {
             AuthError::UserNotFound => write!(f, "User not found"),
             AuthError::InvalidPassword => write!(f, "Invalid password"),
+            AuthError::InvalidUsername => write!(f, "Username format is invalid"),
+            AuthError::InvalidEmail => write!(f, "Email format is invalid"),
             AuthError::UsernameExists => write!(f, "Username already exists"),
             AuthError::EmailExists => write!(f, "Email already exists"),
             AuthError::PasswordHashingFailed => write!(f, "Password hashing failed"),
             AuthError::SessionExpired => write!(f, "Session has expired"),
+            AuthError::InvalidPasswordLogin => write!(f, "Password is incorrect"),
+        
         }
     }
 }
