@@ -24,7 +24,7 @@ pub fn validate_email(email: &str) -> Result<(), &'static str> {
     }
 
     let pattern = regex::Regex::new(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-        .expect("Invalid regex ");
+        .expect("Invalid regex");
 
     if !pattern.is_match(e) {
         return Err("Email format is invalid");
