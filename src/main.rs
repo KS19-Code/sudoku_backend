@@ -6,14 +6,19 @@ use user::model::User;
 use user::validation::{validate_username, validate_email, validate_password};
 use user::error::{AuthError, AuthResult};
 
-use uuid::Uuid;
 use crate::user::session::Session;
 use crate::user::session_repository::SessionRepository;
-use chrono::{Utc, Duration};   
+use crate::user::reset_token::ResetToken;
+use crate::user::reset_token_repository::ResetTokenRepository;
+
+use uuid::Uuid;
+use chrono::{Utc, Duration};
 
 fn main() {
     let mut repo = UserRepository::new();
     let mut session_repo = SessionRepository::new();
+    let mut token_repo = ResetTokenRepository::new();
+
 
     println!("=== User Registration ===");
 
@@ -32,6 +37,21 @@ fn main() {
         Ok(session_id) => {
             println!("Login successful, session ID: {}", session_id);
 
+           // Test: Passwort ändern
+            println!("=== Testing password change ===");
+            match change_password(&session_repo, &mut repo, &session_id, "securepassword", "newsecurepassword") {
+            Ok(_) => println!("Password changed successfully."),
+            Err(err) => println!("Password change failed: {}", err),
+            }
+      
+          
+            //session refresh direkt nach login
+            session_repo.refresh_session(&session_id, 24);
+            println!("Session refreshed for another 24 hours.");
+
+            // abgelaufene sessions bereinigen
+            session_repo.clean_expired_sessions();
+
             //check: ist user eingeloggt?
             if is_logged_in(&session_repo, &session_id) {
                 println!("User is logged in.");
@@ -39,7 +59,7 @@ fn main() {
                 println!("User is not logged in.");
             }
 
-            // === User holenn==)
+            // (=== User holenn==)
             println!("=== testing user from session ===");
             if let Some(user) = get_user_from_session(&session_repo, &repo, &session_id) {
                 println!("User from session: {:?}", user.username);
@@ -57,6 +77,27 @@ fn main() {
             } else {
                 println!("User is logged out.");
             }
+
+            println!("=== PASSWORD RESET TEST ===");
+
+            // Token generieren
+            let reset_token = match request_password_reset(&repo, &mut token_repo, email) {
+                Ok(t) => {
+                    println!("Generated reset token: {}", t);
+                    t
+                }
+                Err(err) => {
+                    println!("Failed to generate reset token: {}", err);
+                    return;
+                }
+            };
+
+            // neues Passwort setzen
+            match reset_password(&mut repo, &mut token_repo, &reset_token, "verynewpassword123") {
+                Ok(_) => println!("Password reset completed."),
+                Err(err) => println!("Password reset failed: {}", err),
+            }
+
         }
         Err(err) => println!("Login failed: {}", err),
     }  
@@ -142,4 +183,92 @@ fn get_user_from_session<'a>(
 
     //3. user anhand der user_id aus session holen 
     user_repo.find_by_id(&session.user_id)
+}
+
+fn change_password(
+    session_repo: &SessionRepository,
+    user_repo: &mut UserRepository,
+    session_id: &Uuid,
+    old_password: &str,
+    new_password: &str,
+) -> AuthResult<()> {
+    // session check 
+    let session = session_repo
+        .find_by_session_id(session_id)
+        .ok_or(AuthError::SessionExpired)?;
+
+    if !session.is_valid() {
+        return Err(AuthError::SessionExpired);
+    }
+
+    let user_id = session.user_id;
+
+    //user holen
+    let user = user_repo
+        .find_by_id(&user_id)
+        .ok_or(AuthError::UserNotFound)?;
+
+    // altes passwort checken
+    let ok = verify_password(old_password, &user.password_hash)
+        .map_err(|_| AuthError::InvalidPasswordLogin)?;
+
+    if !ok {
+        return Err(AuthError::InvalidPasswordLogin);
+    }
+
+    //neues passwort validieren
+    validate_password(new_password).map_err(|_| AuthError::InvalidPassword)?;
+
+    //neues passwort hashen
+    let new_hash = hash_password(new_password)
+        .map_err(|_| AuthError::PasswordHashingFailed)?;
+
+    //passwort im user repository updaten
+    user_repo.update_password(&user_id, new_hash);
+
+    Ok(())
+}
+
+fn request_password_reset(repo: &UserRepository, token_repo: &mut ResetTokenRepository, email: &str) -> AuthResult<Uuid> {
+    let user = repo 
+        .find_by_email(email)
+        .ok_or(AuthError::UserNotFound)?;
+
+    let token = ResetToken::new(user.id);
+    let token_id = token.token;
+
+    token_repo.add_token(token);
+
+    Ok(token_id)
+}
+
+fn reset_password(
+    repo: &mut UserRepository,
+    token_repo: &mut ResetTokenRepository,
+    token: &Uuid,
+    new_password: &str,
+) -> AuthResult<()> {
+    // 1. Token prüfen
+    let token_data = token_repo
+        .find_token(token)
+        .ok_or(AuthError::TokenInvalid)?;
+
+    if !token_data.is_valid() {
+        return Err(AuthError::TokenExpired);
+    }
+
+    // 2. neues Passwort validieren
+    validate_password(new_password).map_err(|_| AuthError::InvalidPassword)?;
+
+    // 3. neues Passwort hashen
+    let new_hash = hash_password(new_password)
+        .map_err(|_| AuthError::PasswordHashingFailed)?;
+
+    // 4. Passwort in UserRepository setzen
+    repo.update_password(&token_data.user_id, new_hash);
+
+    // 5. Token löschen (kann nur einmal genutzt werden)
+    token_repo.remove_token(token);
+
+    Ok(())
 }

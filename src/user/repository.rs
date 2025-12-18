@@ -25,6 +25,15 @@ impl UserRepository {
     self.users.iter().find(|u| &u.id == id)
     }
 
+    pub fn update_password(&mut self, user_id: &Uuid, new_hash: String) -> bool {
+        if let Some(user) = self.users.iter_mut().find(|u| &u.id == user_id) {
+            user.password_hash = new_hash;
+            return true;
+        }
+        false
+    }
+
+
 
  }
 

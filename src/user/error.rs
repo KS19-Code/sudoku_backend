@@ -18,7 +18,9 @@ pub enum AuthError {
 
     //Technische fehler
     PasswordHashingFailed,
-    
+
+    TokenInvalid,
+    TokenExpired,
 }
 
 impl fmt::Display for AuthError {
@@ -33,6 +35,8 @@ impl fmt::Display for AuthError {
             AuthError::PasswordHashingFailed => write!(f, "Password hashing failed"),
             AuthError::SessionExpired => write!(f, "Session has expired"),
             AuthError::InvalidPasswordLogin => write!(f, "Password is incorrect"),
+            AuthError::TokenInvalid => write!(f, "Reset token is invalid"),
+            AuthError::TokenExpired => write!(f, "Reset token has expired"),
         
         }
     }

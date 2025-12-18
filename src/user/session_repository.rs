@@ -1,5 +1,7 @@
 use crate::user::session::Session;
 use uuid::Uuid;
+use chrono::{Utc, Duration};
+
 pub struct SessionRepository {
     sessions: Vec<Session>,
 }
@@ -29,4 +31,13 @@ impl SessionRepository {
     pub fn clean_expired_sessions(&mut self) {
         self.sessions.retain(|s| s.is_valid());
     }
-}
+
+    pub fn refresh_session(&mut self, session_id: &Uuid, hours: i64) -> bool {
+        if let Some(session) = self.sessions.iter_mut().find(|s| s.id == *session_id) {
+            session.expires_at = Utc::now() + Duration::hours(hours);
+            return true;
+        }   
+        false
+    } 
+    
+}  

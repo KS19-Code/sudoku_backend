@@ -5,5 +5,8 @@ pub mod validation;
 pub mod session;
 pub mod session_repository;
 pub mod error;
+pub mod reset_token;
+pub mod reset_token_repository;
+
 
 
